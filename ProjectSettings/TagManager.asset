@@ -5,16 +5,17 @@ TagManager:
   serializedVersion: 3
   tags:
   - CineCam
+  - EffectManager
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Player
   - Water
   - UI
-  - 
-  - 
-  - 
+  - CharacterController
+  - PlayerBodys
+  - Environment
   - 
   - 
   - 

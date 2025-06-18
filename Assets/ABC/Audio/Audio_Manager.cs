@@ -19,6 +19,11 @@ public class Audio_Manager : MonoBehaviour
         StartCoroutine(Audio_Pooling.WaitForSoundToFinishAndEnqueue(source));
     }
 
+    void Start()
+    {
+        Audio_Pooling.CreateAudioSource_AtStart(10, parentObject);
+    }
+
 
 
 

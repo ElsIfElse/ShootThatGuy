@@ -3,111 +3,82 @@ using FishNet.Object;
 using FishNet.Connection;
 using System.Collections;
 using Unity.Cinemachine;
+using Unity.VisualScripting;
+using UnityEngine.InputSystem;
+using FishNet.Component.Transforming;
+using System.Collections.Generic;
+using TMPro;
 
 public class CharacterController_Test : NetworkBehaviour
 {
-    CinemachineCamera playerCamera;
-    [SerializeField] float movementSpeed;
-    [SerializeField] float jumpStrength;
-    bool isGrounded = true;
-    CharacterController characterController;
+    List<NetworkObject> objs = new List<NetworkObject>();
+    public NetworkObject objectToSpawn;
 
-    GameObject body;
-    GameObject cameraHolder;
-    private Vector3 velocity;
-    float gravity = -9.81f;
-    public override void OnStartClient()
+    public override void OnStartServer()
     {
-        base.OnStartClient();
-
-        if (base.IsOwner)
+        base.OnStartServer();
+        StartCoroutine(SpawnWithDelay(1f));
+    }
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.M))
         {
-            body = transform.Find("Body").gameObject;
-            cameraHolder =  transform.Find("CameraHolder").gameObject;
-
-            playerCamera = GameObject.FindWithTag("CineCam").GetComponent<CinemachineCamera>();
-            playerCamera.Target.TrackingTarget = cameraHolder.transform;
-            playerCamera.transform.SetParent(cameraHolder.transform);
-
-            TurnOffCollidersOnBody();
-            TurnOffMeshRenderersOnBody();
+            MoveObj_01();
         }
-        else
+        if (Input.GetKeyDown(KeyCode.N))
         {
-            gameObject.GetComponent<CharacterController_Test>().enabled = false;
+            MoveObj_02();
         }
     }
-    void Start()
-    {
-        characterController = GetComponent<CharacterController>();
-    }
-    void Update()
-    {
-        MovePlayer();
-        IsGrounded();
-        TurnPlayerWithCamera();
-    }
 
-    void IsGrounded()
+    void SpawnObject()
     {
-        if (Physics.Raycast(transform.position, -Vector3.up, out RaycastHit hit, 3f))
-        {
-            isGrounded = true;
-        }
-        else
-        {
-            isGrounded = false;
-        }
-    }
-    void MovePlayer()
-    {
-        if (base.IsOwner == false)
-        {
-            return;
-        }
-        float horizontal = Input.GetAxis("Horizontal");
-        float vertical = Input.GetAxis("Vertical");
+        NetworkObject netObj = Instantiate(objectToSpawn);
 
-        Vector3 move = transform.right * horizontal + transform.forward * vertical;
-        characterController.Move(move * movementSpeed * Time.deltaTime);
-
-        // Jump input
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        if (netObj.GetComponent<NetworkObject>() == null)
         {
-            // v = sqrt(h * -2 * g)
-            velocity.y = Mathf.Sqrt(jumpStrength * -2f * gravity);
+            Debug.Log("No NetworkObject component found! Adding one.");
+            netObj.gameObject.AddComponent<NetworkObject>();
+        }
+        if (netObj.GetComponent<NetworkTransform>() == null)
+        {
+            Debug.Log("No NetworkTransform component found! Adding one.");
+            netObj.gameObject.AddComponent<NetworkTransform>();
         }
 
-        // Apply gravity over time
-        velocity.y += gravity * Time.deltaTime;
-
-        // Apply vertical movement (falling/jumping)
-        characterController.Move(velocity * Time.deltaTime);
+        netObj.transform.position = new Vector3(0, 0, 0);
+        Spawn(netObj);
+        objs.Add(netObj);
     }
 
-    void TurnPlayerWithCamera()
+    IEnumerator SpawnWithDelay(float delay)
     {
-        if (base.IsOwner == false) return;
-        
-        Vector3 direction = playerCamera.transform.forward;
-        direction.y = 0;
-        transform.rotation = Quaternion.LookRotation(direction);
-    }
+        yield return new WaitForSeconds(delay);
 
-    void TurnOffCollidersOnBody()
-    {
-        BoxCollider[] colliders = body.GetComponentsInChildren<BoxCollider>();
-        foreach (BoxCollider collider in colliders)
+        for(int i = 0; i < 10; i++)
         {
-            collider.enabled = false;
+            SpawnObject();
         }
     }
-    void TurnOffMeshRenderersOnBody()
+
+    [ServerRpc(RequireOwnership = false)]
+    void MoveObj_01()
     {
-        MeshRenderer[] renderers = body.GetComponentsInChildren<MeshRenderer>();
-        foreach (MeshRenderer renderer in renderers)
+        for (int i = 0; i < objs.Count; i++)
         {
-            renderer.enabled = false;
+            objs[i].transform.position += new Vector3(i * 2, 0, 0);
         }
     }
+
+    [ServerRpc(RequireOwnership = false)]
+    void MoveObj_02()
+    {
+        for (int i = 0; i < objs.Count; i++)
+        {
+            objs[i].transform.position += new Vector3(0, 0, 1);
+        }
+    }
+
+    
+
 }
